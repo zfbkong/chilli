@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>Test Report</title>
+    <link href="assets/style.css" rel="stylesheet" type="text/css"/></head>
+  <body onLoad="init()">
+    <script>/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ * You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+
+function toArray(iter) {
+    if (iter === null) {
+        return null;
+    }
+    return Array.prototype.slice.call(iter);
+}
+
+function find(selector, elem) {
+    if (!elem) {
+        elem = document;
+    }
+    return elem.querySelector(selector);
+}
+
+function find_all(selector, elem) {
+    if (!elem) {
+        elem = document;
+    }
+    return toArray(elem.querySelectorAll(selector));
+}
+
+function sort_column(elem) {
+    toggle_sort_states(elem);
+    var colIndex = toArray(elem.parentNode.childNodes).indexOf(elem);
+    var key;
+    if (elem.classList.contains('numeric')) {
+        key = key_num;
+    } else if (elem.classList.contains('result')) {
+        key = key_result;
+    } else {
+        key = key_alpha;
+    }
+    sort_table(elem, key(colIndex));
+}
+
+function show_all_extras() {
+    find_all('.col-result').forEach(show_extras);
+}
+
+function hide_all_extras() {
+    find_all('.col-result').forEach(hide_extras);
+}
+
+function show_extras(colresult_elem) {
+    var extras = colresult_elem.parentNode.nextElementSibling;
+    var expandcollapse = colresult_elem.firstElementChild;
+    extras.classList.remove("collapsed");
+    expandcollapse.classList.remove("expander");
+    expandcollapse.classList.add("collapser");
+}
+
+function hide_extras(colresult_elem) {
+    var extras = colresult_elem.parentNode.nextElementSibling;
+    var expandcollapse = colresult_elem.firstElementChild;
+    extras.classList.add("collapsed");
+    expandcollapse.classList.remove("collapser");
+    expandcollapse.classList.add("expander");
+}
+
+function show_filters() {
+    var filter_items = document.getElementsByClassName('filter');
+    for (var i = 0; i < filter_items.length; i++)
+        filter_items[i].hidden = false;
+}
+
+function add_collapse() {
+    // Add links for show/hide all
+    var resulttable = find('table#results-table');
+    var showhideall = document.createElement("p");
+    showhideall.innerHTML = '<a href="javascript:show_all_extras()">Show all details</a> / ' +
+                            '<a href="javascript:hide_all_extras()">Hide all details</a>';
+    resulttable.parentElement.insertBefore(showhideall, resulttable);
+
+    // Add show/hide link to each result
+    find_all('.col-result').forEach(function(elem) {
+        var collapsed = get_query_parameter('collapsed') || 'Passed';
+        var extras = elem.parentNode.nextElementSibling;
+        var expandcollapse = document.createElement("span");
+        if (extras.classList.contains("collapsed")) {
+            expandcollapse.classList.add("expander")
+        } else if (collapsed.includes(elem.innerHTML)) {
+            extras.classList.add("collapsed");
+            expandcollapse.classList.add("expander");
+        } else {
+            expandcollapse.classList.add("collapser");
+        }
+        elem.appendChild(expandcollapse);
+
+        elem.addEventListener("click", function(event) {
+            if (event.currentTarget.parentNode.nextElementSibling.classList.contains("collapsed")) {
+                show_extras(event.currentTarget);
+            } else {
+                hide_extras(event.currentTarget);
+            }
+        });
+    })
+}
+
+function get_query_parameter(name) {
+    var match = RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
+    return match && decodeURIComponent(match[1].replace(/\+/g, ' '));
+}
+
+function init () {
+    reset_sort_headers();
+
+    add_collapse();
+
+    show_filters();
+
+    sort_column(find('.initial-sort'));
+
+    find_all('.sortable').forEach(function(elem) {
+        elem.addEventListener("click",
+                              function(event) {
+                                  sort_column(elem);
+                              }, false)
+    });
+
+};
+
+function sort_table(clicked, key_func) {
+    var rows = find_all('.results-table-row');
+    var reversed = !clicked.classList.contains('asc');
+    var sorted_rows = sort(rows, key_func, reversed);
+    /* Whole table is removed here because browsers acts much slower
+     * when appending existing elements.
+     */
+    var thead = document.getElementById("results-table-head");
+    document.getElementById('results-table').remove();
+    var parent = document.createElement("table");
+    parent.id = "results-table";
+    parent.appendChild(thead);
+    sorted_rows.forEach(function(elem) {
+        parent.appendChild(elem);
+    });
+    document.getElementsByTagName("BODY")[0].appendChild(parent);
+}
+
+function sort(items, key_func, reversed) {
+    var sort_array = items.map(function(item, i) {
+        return [key_func(item), i];
+    });
+
+    sort_array.sort(function(a, b) {
+        var key_a = a[0];
+        var key_b = b[0];
+
+        if (key_a == key_b) return 0;
+
+        if (reversed) {
+            return (key_a < key_b ? 1 : -1);
+        } else {
+            return (key_a > key_b ? 1 : -1);
+        }
+    });
+
+    return sort_array.map(function(item) {
+        var index = item[1];
+        return items[index];
+    });
+}
+
+function key_alpha(col_index) {
+    return function(elem) {
+        return elem.childNodes[1].childNodes[col_index].firstChild.data.toLowerCase();
+    };
+}
+
+function key_num(col_index) {
+    return function(elem) {
+        return parseFloat(elem.childNodes[1].childNodes[col_index].firstChild.data);
+    };
+}
+
+function key_result(col_index) {
+    return function(elem) {
+        var strings = ['Error', 'Failed', 'Rerun', 'XFailed', 'XPassed',
+                       'Skipped', 'Passed'];
+        return strings.indexOf(elem.childNodes[1].childNodes[col_index].firstChild.data);
+    };
+}
+
+function reset_sort_headers() {
+    find_all('.sort-icon').forEach(function(elem) {
+        elem.parentNode.removeChild(elem);
+    });
+    find_all('.sortable').forEach(function(elem) {
+        var icon = document.createElement("div");
+        icon.className = "sort-icon";
+        icon.textContent = "vvv";
+        elem.insertBefore(icon, elem.firstChild);
+        elem.classList.remove("desc", "active");
+        elem.classList.add("asc", "inactive");
+    });
+}
+
+function toggle_sort_states(elem) {
+    //if active, toggle between asc and desc
+    if (elem.classList.contains('active')) {
+        elem.classList.toggle('asc');
+        elem.classList.toggle('desc');
+    }
+
+    //if inactive, reset all other functions and add ascending active
+    if (elem.classList.contains('inactive')) {
+        reset_sort_headers();
+        elem.classList.remove('inactive');
+        elem.classList.add('active');
+    }
+}
+
+function is_all_rows_hidden(value) {
+  return value.hidden == false;
+}
+
+function filter_table(elem) {
+    var outcome_att = "data-test-result";
+    var outcome = elem.getAttribute(outcome_att);
+    class_outcome = outcome + " results-table-row";
+    var outcome_rows = document.getElementsByClassName(class_outcome);
+
+    for(var i = 0; i < outcome_rows.length; i++){
+        outcome_rows[i].hidden = !elem.checked;
+    }
+
+    var rows = find_all('.results-table-row').filter(is_all_rows_hidden);
+    var all_rows_hidden = rows.length == 0 ? true : false;
+    var not_found_message = document.getElementById("not-found-message");
+    not_found_message.hidden = !all_rows_hidden;
+}
+</script>
+    <h1>kayuReport.html</h1>
+    <p>Report generated on 14-Apr-2020 at 10:05:11 by <a href="https://pypi.python.org/pypi/pytest-html">pytest-html</a> v2.1.1</p>
+    <h2>Environment</h2>
+    <table id="environment">
+      <tr>
+        <td>JAVA_HOME</td>
+        <td>/Library/Java/JavaVirtualMachines/jdk1.8.0_181.jdk/Contents/Home</td></tr>
+      <tr>
+        <td>Packages</td>
+        <td>{"pluggy": "0.13.1", "py": "1.8.1", "pytest": "5.4.1"}</td></tr>
+      <tr>
+        <td>Platform</td>
+        <td>Darwin-18.7.0-x86_64-i386-64bit</td></tr>
+      <tr>
+        <td>Plugins</td>
+        <td>{"html": "2.1.1", "metadata": "1.8.0"}</td></tr>
+      <tr>
+        <td>Python</td>
+        <td>3.7.6</td></tr></table>
+    <h2>Summary</h2>
+    <p>2 tests ran in 0.38 seconds. </p>
+    <p class="filter" hidden="true">(Un)check the boxes to filter the results.</p><input checked="true" class="filter" data-test-result="passed" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="passed">2 passed</span>, <input checked="true" class="filter" data-test-result="skipped" disabled="true" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="skipped">0 skipped</span>, <input checked="true" class="filter" data-test-result="failed" disabled="true" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="failed">0 failed</span>, <input checked="true" class="filter" data-test-result="error" disabled="true" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="error">0 errors</span>, <input checked="true" class="filter" data-test-result="xfailed" disabled="true" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="xfailed">0 expected failures</span>, <input checked="true" class="filter" data-test-result="xpassed" disabled="true" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="xpassed">0 unexpected passes</span>
+    <h2>Results</h2>
+    <table id="results-table">
+      <thead id="results-table-head">
+        <tr>
+          <th class="sortable result initial-sort" col="result">Result</th>
+          <th class="sortable" col="name">Test</th>
+          <th class="sortable numeric" col="duration">Duration</th>
+          <th>Links</th></tr>
+        <tr hidden="true" id="not-found-message">
+          <th colspan="4">No results found. Try to check the filters</th></tr></thead>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_kayu.py::TestCases::test_login</td>
+          <td class="col-duration">0.12</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE1ODY5MTYzMTEsImlzcyI6IjE4IiwiVWlkIjoiMTgiLCJVVHlwZSI6Mn0.HKsPe1Y6pmj8qxSRiGAYig_Dq62rAOPf7eVcVCw58vE
+200
+b&#x27;{&quot;code&quot;:200,&quot;message&quot;:&quot;success&quot;,&quot;data&quot;:{&quot;token&quot;:&quot;eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE1ODY5MTYzMTEsImlzcyI6IjE4IiwiVWlkIjoiMTgiLCJVVHlwZSI6Mn0.HKsPe1Y6pmj8qxSRiGAYig_Dq62rAOPf7eVcVCw58vE&quot;}}\n&#x27;
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_kayu.py::TestCases::test_activityManager</td>
+          <td class="col-duration">0.03</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>200
+b&#x27;{&quot;code&quot;:200,&quot;message&quot;:&quot;success&quot;,&quot;data&quot;:{&quot;list&quot;:[{&quot;id&quot;:293,&quot;name&quot;:&quot;\xe6\xa1\xa5\xe5\xa4\xb4\xe5\x85\xad\xe5\xae\xab\xe6\xa0\xbc&quot;,&quot;sub_title&quot;:&quot;10:03&quot;,&quot;h5_url&quot;:&quot;https://oscdn.kayuwangluo.com/activity_html/11083501191725056.html&quot;,&quot;img_url&quot;:&quot;https://oscdn.kayuwangluo.com/activity/5192d95d384f16e8779257e71c385e09.jpg&quot;,&quot;type&quot;:3,&quot;bank_id&quot;:23,&quot;number&quot;:0,&quot;bank_name&quot;:&quot;\xe5\x85\xad\xe5\xae\xab\xe6\xa0\xbc\xe7\x81\xab\xe9\x94\x85&quot;,&quot;push_time&quot;:1585533802,&quot;down_time&quot;:0,&quot;stop_time&quot;:1585533550,&quot;status&quot;:1,&quot;platform&quot;:3,&quot;title&quot;:&quot;\xe6\xb4\xbb\xe5\x8a\xa8\xe8\xaf\xa6\xe6\x83\x85&quot;,&quot;h5_content&quot;:&quot;\\u003cp\\u003e\\u003cimg src=\\&quot;https://oscdn.kayuwangluo.com/activity/5192d95d384f16e8779257e71c385e09.jpg\\&quot; style=\\&quot;max-width:100%;\\&quot;\\u003e\\u003cbr\\u003e\\u003c/p\\u003e\\u003ch1\\u003e\\u003cspan style=\\&quot;color: rgb(37, 238, 170); background-color: rgb(255, 255, 255);\\&quot;\\u003e\xe8\xbf\x99\xe9\x87\x8c\xe6\x98\xaf\xe6\xb5\x8b\xe8\xaf\x95\xe6\x8e\xa8\xe8\x8d\x90\xe6\xb4\xbb\xe5\x8a\xa8\xe8\xaf\x84\xe5\x88\x86\xe5\x86\x85\xe5\xae\xb9\xef\xbd\x9e\\u003c/span\\u003e\\u003c/h1\\u003e\\u003cdiv\\u003e\\u003cimg src=\\&quot;http://img.t.sinajs.cn/t4/appstyle/expression/ext/normal/40/pcmoren_tian_org.png\\&quot; alt=\\&quot;[\xe8\x88\x94\xe5\xb1\x8f]\\&quot;\\u003e\\u003cimg src=\\&quot;http://img.t.sinajs.cn/t4/appstyle/expression/ext/normal/40/pcmoren_tian_org.png\\&quot; alt=\\&quot;[\xe8\x88\x94\xe5\xb1\x8f]\\&quot;\\u003e\\u003cimg src=\\&quot;http://img.t.sinajs.cn/t4/appstyle/expression/ext/normal/40/pcmoren_tian_org.png\\&quot; alt=\\&quot;[\xe8\x88\x94\xe5\xb1\x8f]\\&quot;\\u003e\\u003cimg src=\\&quot;http://img.t.sinajs.cn/t4/appstyle/expression/ext/normal/40/pcmoren_tian_org.png\\&quot; alt=\\&quot;[\xe8\x88\x94\xe5\xb1\x8f]\\&quot;\\u003e\\u003cimg src=\\&quot;http://img.t.sinajs.cn/t4/appstyle/expression/ext/normal/40/pcmoren_tian_org.png\\&quot; alt=\\&quot;[\xe8\x88\x94\xe5\xb1\x8f]\\&quot;\\u003e\\u003cimg src=\\&quot;http://img.t.sinajs.cn/t4/appstyle/expression/ext/normal/40/pcmoren_tian_org.png\\&quot; alt=\\&quot;[\xe8\x88\x94\xe5\xb1\x8f]\\&quot;\\u003e\\u003cimg src=\\&quot;http://img.t.sinajs.cn/t4/appstyle/expression/ext/normal/40/pcmoren_tian_org.png\\&quot; alt=\\&quot;[\xe8\x88\x94\xe5\xb1\x8f]\\&quot;\\u003e\\u003cimg src=\\&quot;http://img.t.sinajs.cn/t4/appstyle/expression/ext/normal/40/pcmoren_tian_org.png\\&quot; alt=\\&quot;[\xe8\x88\x94\xe5\xb1\x8f]\\&quot;\\u003e\\u003cimg src=\\&quot;http://img.t.sinajs.cn/t4/appstyle/expression/ext/normal/40/pcmoren_tian_org.png\\&quot; alt=\\&quot;[\xe8\x88\x94\xe5\xb1\x8f]\\&quot;\\u003e\\u003cimg src=\\&quot;http://img.t.sinajs.cn/t4/appstyle/expression/ext/normal/40/pcmoren_tian_org.png\\&quot; alt=\\&quot;[\xe8\x88\x94\xe5\xb1\x8f]\\&quot;\\u003e\\u003cimg src=\\&quot;http://img.t.sinajs.cn/t4/appstyle/expression/ext/normal/40/pcmoren_tian_org.png\\&quot; alt=\\&quot;[\xe8\x88\x94\xe5\xb1\x8f]\\&quot;\\u003e\\u003cimg src=\\&quot;http://img.t.sinajs.cn/t4/appstyle/expression/ext/normal/40/pcmoren_tian_org.png\\&quot; alt=\\&quot;[\xe8\x88\x94\xe5\xb1\x8f]\\&quot;\\u003e\\u003cspan style=\\&quot;color: rgb(37, 238, 170); background-color: rgb(255, 255, 255);\\&quot;\\u003e\\u003cbr\\u003e\\u003c/span\\u003e\\u003c/div\\u003e\\u003cp\\u003e\\u003cbr\\u003e\\u003c/p\\u003e&quot;,&quot;h5_content_status&quot;:0,&quot;create_at&quot;:1585533725,&quot;update_at&quot;:1585533802,&quot;rank&quot;:4,&quot;recommend&quot;:1,&quot;score&quot;:9.3,&quot;rec_url&quot;:&quot;https://oscdn.kayuwangluo.com/banner/5192d95d384f16e8779257e71c385e09.jpg&quot;},{&quot;id&quot;:448,&quot;name&quot;:&quot;\xe6\x9c\xb1\xe6\x9c\xb1\xe7\x99\xbd\xe7\x99\xbd&quot;,&quot;sub_title&quot;:&quot;\xe6\x88\x91\xe6\x98\xaf\xe7\xba\xa2\xe8\x89\xb2\xe4\xb8\xbb\xe9\xa2\x98&quot;,&quot;h5_url&quot;:&quot;https://oscdn.kayuwangluo.com/activity_html/11029374369824768.html&quot;,&quot;img_url&quot;:&quot;https://oscdn.kayuwangluo.com/activity/3a76048c3fbe45665d61831f89bb370d.jpg&quot;,&quot;type&quot;:3,&quot;bank_id&quot;:2,&quot;number&quot;:0,&quot;bank_name&quot;:&quot;\xe4\xb8\xad\xe5\x9b\xbd\xe9\x93\xb6\xe8\xa1\x8c&quot;,&quot;push_time&quot;:1585120773,&quot;down_time&quot;:0,&quot;stop_time&quot;:1585324800,&quot;status&quot;:3,&quot;platform&quot;:3,&quot;title&quot;:&quot;\xe6\xb4\xbb\xe5\x8a\xa8\xe8\xaf\xa6\xe6\x83\x85&quot;,&quot;h5_content&quot;:&quot;\\u003cp\\u003e\\u003cimg id=\\&quot;alttext-image\\&quot; width=\\&quot;16\\&quot; height=\\&quot;16\\&quot; align=\\&quot;left\\&quot; style=\\&quot;color: rgba(255, 255, 255, 0.8); font-family: -apple-system-font, system-ui, \\u0026quot;Helvetica Neue\\u0026quot;, \\u0026quot;PingFang SC\\u0026quot;, \\u0026quot;Hiragino Sans GB\\u0026quot;, \\u0026quot;Microsoft YaHei UI\\u0026quot;, \\u0026quot;Microsoft YaHei\\u0026quot;, Arial, sans-serif; font-size: 16px; letter-spacing: 0.408px; background-color: rgb(25, 25, 25); display: inline; float: left;\\&quot;\\u003e\\u003cspan id=\\&quot;alttext\\&quot; style=\\&quot;color: rgba(255, 255, 255, 0.8); font-family: -apple-system-font, system-ui, \\u0026quot;Helvetica Neue\\u0026quot;, \\u0026quot;PingFang SC\\u0026quot;, \\u0026quot;Hiragino Sans GB\\u0026quot;, \\u0026quot;Microsoft YaHei UI\\u0026quot;, \\u0026quot;Microsoft YaHei\\u0026quot;, Arial, sans-serif; font-size: 16px; letter-spacing: 0.408px; background-color: rgb(25, 25, 25);\\&quot;\\u003ecfc62b950fd6fd3fbb6b4935ac3d9764.jpg\\u003c/span\\u003e\\u003cbr\\u003e\\u003c/p\\u003e&quot;,&quot;h5_content_status&quot;:0,&quot;create_at&quot;:1585120770,&quot;update_at&quot;:1586247329,&quot;rank&quot;:4,&quot;recommend&quot;:1,&quot;score&quot;:9,&quot;rec_url&quot;:&quot;https://oscdn.kayuwangluo.com/banner/c5f376c859f7062edb496f6a28437165.jpg&quot;},{&quot;id&quot;:447,&quot;name&quot;:&quot;\xe5\xb0\x8f\xe7\x8c\xaa\xe9\x85\x8d\xe9\xbd\x90&quot;,&quot;sub_title&quot;:&quot;\xe6\x88\x91\xe6\x98\xaf\xe7\xb4\xab\xe8\x89\xb2\xe4\xb8\xbb\xe9\xa2\x98&quot;,&quot;h5_url&quot;:&quot;https://oscdn.kayuwangluo.com/activity_html/11029368253480960.html&quot;,&quot;img_url&quot;:&quot;https://oscdn.kayuwangluo.com/activity/44f15981f65e8830e05aff5d0c96d4e0.jpg&quot;,&quot;type&quot;:3,&quot;bank_id&quot;:1,&quot;number&quot;:0,&quot;bank_name&quot;:&quot;\xe6\xb5\xa6\xe5\x8f\x91\xe9\x93\xb6\xe8\xa1\x8c&quot;,&quot;push_time&quot;:1585120726,&quot;down_time&quot;:0,&quot;stop_time&quot;:1585324800,&quot;status&quot;:1,&quot;platform&quot;:3,&quot;title&quot;:&quot;\xe6\xb4\xbb\xe5\x8a\xa8\xe8\xaf\xa6\xe6\x83\x85&quot;,&quot;h5_content&quot;:&quot;\\u003cp\\u003e22222\\u003c/p\\u003e&quot;,&quot;h5_content_status&quot;:0,&quot;create_at&quot;:1585120723,&quot;update_at&quot;:1585297423,&quot;rank&quot;:4,&quot;recommend&quot;:1,&quot;score&quot;:7.9,&quot;rec_url&quot;:&quot;https://oscdn.kayuwangluo.com/banner/6e0efffe28d42570776daac36a7a7101.jpg&quot;},{&quot;id&quot;:446,&quot;name&quot;:&quot;\xe8\x8f\x9c\xe7\xaf\xae\xe5\xad\x90\xe5\xb7\xa5\xe7\xa8\x8b&quot;,&quot;sub_title&quot;:&quot;\xe6\x88\x91\xe6\x98\xaf\xe8\x93\x9d\xe8\x89\xb2\xe4\xb8\xbb\xe9\xa2\x98&quot;,&quot;h5_url&quot;:&quot;https://oscdn.kayuwangluo.com/activity_html/11029356435243008.html&quot;,&quot;img_url&quot;:&quot;https://oscdn.kayuwangluo.com/activity/3a86a00251a56bf6d4545969399c86b1.jpg&quot;,&quot;type&quot;:3,&quot;bank_id&quot;:3,&quot;number&quot;:0,&quot;bank_name&quot;:&quot;\xe6\x8b\x9b\xe5\x95\x86\xe9\x93\xb6\xe8\xa1\x8c&quot;,&quot;push_time&quot;:1585120637,&quot;down_time&quot;:0,&quot;stop_time&quot;:1585324800,&quot;status&quot;:1,&quot;platform&quot;:3,&quot;title&quot;:&quot;\xe6\xb4\xbb\xe5\x8a\xa8\xe8\xaf\xa6\xe6\x83\x85&quot;,&quot;h5_content&quot;:&quot;\\u003cp\\u003e\\u003cimg src=\\&quot;https://oscdn.kayuwangluo.com/activity/8b84cdafd8cf7ee7a7eb8aea29a611e0.jpg\\&quot; style=\\&quot;max-width:100%;\\&quot;\\u003e\\u003cbr\\u003e\\u003c/p\\u003e&quot;,&quot;h5_content_status&quot;:0,&quot;create_at&quot;:1585120633,&quot;update_at&quot;:1585297426,&quot;rank&quot;:4,&quot;recommend&quot;:1,&quot;score&quot;:6.6,&quot;rec_url&quot;:&quot;https://oscdn.kayuwangluo.com/banner/2a150a334a25d77265af66950f2af41d.52&quot;},{&quot;id&quot;:445,&quot;name&quot;:&quot;&quot;,&quot;sub_title&quot;:&quot;&quot;,&quot;h5_url&quot;:&quot;https://oscdn.kayuwangluo.com/activity_html/11029054998478848.html&quot;,&quot;img_url&quot;:&quot;https://oscdn.kayuwangluo.com/activity/fddd8b3a3b86e25ccaa3aca751106377.jpg&quot;,&quot;type&quot;:2,&quot;bank_id&quot;:3,&quot;number&quot;:0,&quot;bank_name&quot;:&quot;\xe6\x8b\x9b\xe5\x95\x86\xe9\x93\xb6\xe8\xa1\x8c&quot;,&quot;push_time&quot;:1585118338,&quot;down_time&quot;:0,&quot;stop_time&quot;:1585324800,&quot;status&quot;:1,&quot;platform&quot;:3,&quot;title&quot;:&quot;\xe6\xb4\xbb\xe5\x8a\xa8\xe8\xaf\xa6\xe6\x83\x85&quot;,&quot;h5_content&quot;:&quot;\\u003cp\\u003e\xe6\x8b\x9b\xe5\x95\x86\xe9\x93\xb6\xe8\xa1\x8c\\u003c/p\\u003e&quot;,&quot;h5_content_status&quot;:0,&quot;create_at&quot;:1585118333,&quot;update_at&quot;:1585297429,&quot;rank&quot;:4,&quot;recommend&quot;:1,&quot;score&quot;:1.4,&quot;rec_url&quot;:&quot;https://oscdn.kayuwangluo.com/banner/38502c8199a6bec3091c8d50764095ed.jpg&quot;},{&quot;id&quot;:444,&quot;name&quot;:&quot;&quot;,&quot;sub_title&quot;:&quot;&quot;,&quot;h5_url&quot;:&quot;https://oscdn.kayuwangluo.com/activity_html/11029049120686080.html&quot;,&quot;img_url&quot;:&quot;https://oscdn.kayuwangluo.com/activity/ad2585fb8d376ec161e8ef57d61129e4.jpg&quot;,&quot;type&quot;:2,&quot;bank_id&quot;:2,&quot;number&quot;:0,&quot;bank_name&quot;:&quot;\xe4\xb8\xad\xe5\x9b\xbd\xe9\x93\xb6\xe8\xa1\x8c&quot;,&quot;push_time&quot;:1585118299,&quot;down_time&quot;:0,&quot;stop_time&quot;:1585324800,&quot;status&quot;:1,&quot;platform&quot;:3,&quot;title&quot;:&quot;\xe6\xb4\xbb\xe5\x8a\xa8\xe8\xaf\xa6\xe6\x83\x85&quot;,&quot;h5_content&quot;:&quot;\\u003cp\\u003e\xe4\xb8\xad\xe5\x9b\xbd\xe9\x93\xb6\xe8\xa1\x8c\\u003c/p\\u003e&quot;,&quot;h5_content_status&quot;:0,&quot;create_at&quot;:1585118289,&quot;update_at&quot;:1585297432,&quot;rank&quot;:4,&quot;recommend&quot;:1,&quot;score&quot;:2.1,&quot;rec_url&quot;:&quot;https://oscdn.kayuwangluo.com/banner/cff84bd517493f8cbb4df04a398ce563.jpg&quot;},{&quot;id&quot;:443,&quot;name&quot;:&quot;&quot;,&quot;sub_title&quot;:&quot;&quot;,&quot;h5_url&quot;:&quot;https://oscdn.kayuwangluo.com/activity_html/11029044960329728.html&quot;,&quot;img_url&quot;:&quot;https://oscdn.kayuwangluo.com/activity/62fcf7568be43a56ad15d39b3e35a86f.jpg&quot;,&quot;type&quot;:2,&quot;bank_id&quot;:1,&quot;number&quot;:0,&quot;bank_name&quot;:&quot;\xe6\xb5\xa6\xe5\x8f\x91\xe9\x93\xb6\xe8\xa1\x8c&quot;,&quot;push_time&quot;:1585118261,&quot;down_time&quot;:0,&quot;stop_time&quot;:1585324800,&quot;status&quot;:1,&quot;platform&quot;:3,&quot;title&quot;:&quot;\xe6\xb4\xbb\xe5\x8a\xa8\xe8\xaf\xa6\xe6\x83\x85&quot;,&quot;h5_content&quot;:&quot;\\u003cp\\u003e\xe6\xb5\xa6\xe5\x8f\x91\xe9\x93\xb6\xe8\xa1\x8c\\u003c/p\\u003e&quot;,&quot;h5_content_status&quot;:0,&quot;create_at&quot;:1585118257,&quot;update_at&quot;:1585297435,&quot;rank&quot;:4,&quot;recommend&quot;:1,&quot;score&quot;:9.8,&quot;rec_url&quot;:&quot;https://oscdn.kayuwangluo.com/banner/970868d05e435e6becf7a812468ab8ce.jpg&quot;},{&quot;id&quot;:435,&quot;name&quot;:&quot;just&quot;,&quot;sub_title&quot;:&quot;222&quot;,&quot;h5_url&quot;:&quot;https://oscdn.kayuwangluo.com/activity_html/10975173145690112.html&quot;,&quot;img_url&quot;:&quot;https://oscdn.kayuwangluo.com/activity/4d7c07a7c1dac41014aa6ce0708bfd33.jpg&quot;,&quot;type&quot;:3,&quot;bank_id&quot;:7,&quot;number&quot;:0,&quot;bank_name&quot;:&quot;\xe5\xb7\xa5\xe5\x95\x86\xe9\x93\xb6\xe8\xa1\x8c&quot;,&quot;push_time&quot;:1585195400,&quot;down_time&quot;:0,&quot;stop_time&quot;:1585324800,&quot;status&quot;:1,&quot;platform&quot;:2,&quot;title&quot;:&quot;\xe6\xb4\xbb\xe5\x8a\xa8\xe8\xaf\xa6\xe6\x83\x85&quot;,&quot;h5_content&quot;:&quot;\\u003cp\\u003e333\\u003cimg src=\\&quot;https://oscdn.kayuwangluo.com/activity/4d7c07a7c1dac41014aa6ce0708bfd33.jpg\\&quot; style=\\&quot;max-width: 100%;\\&quot;\\u003e\\u003c/p\\u003e&quot;,&quot;h5_content_status&quot;:0,&quot;create_at&quot;:1584707247,&quot;update_at&quot;:1585297438,&quot;rank&quot;:4,&quot;recommend&quot;:1,&quot;score&quot;:9.8,&quot;rec_url&quot;:&quot;https://oscdn.kayuwangluo.com/banner/2514abd9114f891ea06f59597c27e739.jpg&quot;},{&quot;id&quot;:434,&quot;name&quot;:&quot;&quot;,&quot;sub_title&quot;:&quot;&quot;,&quot;h5_url&quot;:&quot;https://oscdn.kayuwangluo.com/activity_html/10975046363807744.html&quot;,&quot;img_url&quot;:&quot;https://oscdn.kayuwangluo.com/activity/606e902eba095d70e09348f14cba1cc1.jpg&quot;,&quot;type&quot;:2,&quot;bank_id&quot;:41,&quot;number&quot;:0,&quot;bank_name&quot;:&quot;320bank&quot;,&quot;push_time&quot;:1585195401,&quot;down_time&quot;:0,&quot;stop_time&quot;:1585324800,&quot;status&quot;:1,&quot;platform&quot;:3,&quot;title&quot;:&quot;\xe6\xb4\xbb\xe5\x8a\xa8\xe8\xaf\xa6\xe6\x83\x85&quot;,&quot;h5_content&quot;:&quot;\\u003cp\\u003e\xe5\x91\x9c\xe5\x91\x9c\xe5\x91\x9c\xe5\x91\x9c\xe5\x91\x9c\\u003c/p\\u003e&quot;,&quot;h5_content_status&quot;:0,&quot;create_at&quot;:1584706280,&quot;update_at&quot;:1585297441,&quot;rank&quot;:4,&quot;recommend&quot;:1,&quot;score&quot;:8.1,&quot;rec_url&quot;:&quot;https://oscdn.kayuwangluo.com/banner/c5f376c859f7062edb496f6a28437165.jpg&quot;},{&quot;id&quot;:433,&quot;name&quot;:&quot;&quot;,&quot;sub_title&quot;:&quot;&quot;,&quot;h5_url&quot;:&quot;https://oscdn.kayuwangluo.com/activity_html/10974760604696576.html&quot;,&quot;img_url&quot;:&quot;https://oscdn.kayuwangluo.com/activity/cff84bd517493f8cbb4df04a398ce563.jpg&quot;,&quot;type&quot;:2,&quot;bank_id&quot;:6,&quot;number&quot;:0,&quot;bank_name&quot;:&quot;\xe5\x86\x9c\xe4\xb8\x9a\xe9\x93\xb6\xe8\xa1\x8c&quot;,&quot;push_time&quot;:1585118085,&quot;down_time&quot;:0,&quot;stop_time&quot;:1585324800,&quot;status&quot;:1,&quot;platform&quot;:2,&quot;title&quot;:&quot;\xe6\xb4\xbb\xe5\x8a\xa8\xe8\xaf\xa6\xe6\x83\x85&quot;,&quot;h5_content&quot;:&quot;\\u003cp\\u003e2222\\u003c/p\\u003e&quot;,&quot;h5_content_status&quot;:0,&quot;create_at&quot;:1584704100,&quot;update_at&quot;:1585297444,&quot;rank&quot;:4,&quot;recommend&quot;:1,&quot;score&quot;:0.3,&quot;rec_url&quot;:&quot;https://oscdn.kayuwangluo.com/banner/0b1b20ca481cebdea29882da18e4397f.jpg&quot;}],&quot;total&quot;:68}}\n&#x27;
+<br/></div></td></tr></tbody></table></body></html>

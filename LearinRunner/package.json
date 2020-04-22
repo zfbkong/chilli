@@ -1,0 +1,135 @@
+{
+    "config": {
+        "name": "testcase description",
+        "variables": {}
+    },
+    "teststeps": [
+        {
+            "name": "/login",
+            "request": {
+                "url": "http://39.97.246.180:8889/login",
+                "method": "POST",
+                "headers": {
+                    "Authorization": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE1ODM4MjI5MTEsImlzcyI6IjE4IiwiVWlkIjoiMTgiLCJVVHlwZSI6Mn0.UeOuccBUZD_ct8LFQtvJz67mQorIzhgn-0S8fv84GiU",
+                    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.117 Safari/537.36",
+                    "Content-Type": "application/json;charset=UTF-8"
+                },
+                "json": {
+                    "account": "zfb",
+                    "password": "111111"
+                }
+            },
+            "validate": [
+                {
+                    "eq": [
+                        "status_code",
+                        200
+                    ]
+                },
+                {
+                    "eq": [
+                        "headers.Content-Type",
+                        "application/json; charset=UTF-8"
+                    ]
+                },
+                {
+                    "eq": [
+                        "content.code",
+                        200
+                    ]
+                },
+                {
+                    "eq": [
+                        "content.message",
+                        "success"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "/v1/activity/list",
+            "request": {
+                "url": "http://39.97.246.180:8889/v1/activity/list",
+                "method": "POST",
+                "headers": {
+                    "Authorization": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE1ODM4MjI5MzUsImlzcyI6IjE4IiwiVWlkIjoiMTgiLCJVVHlwZSI6Mn0.ujNZ-NrSc3zwLCEndv3f_ZQDTIFySSFdu4g96Oj8rZY",
+                    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.117 Safari/537.36",
+                    "Content-Type": "application/json;charset=UTF-8"
+                },
+                "json": {
+                    "id": 0,
+                    "name": "",
+                    "type": 0,
+                    "bank_id": 0,
+                    "platform": 0,
+                    "status": 0,
+                    "page": 1,
+                    "count": 10
+                }
+            },
+            "validate": [
+                {
+                    "eq": [
+                        "status_code",
+                        200
+                    ]
+                },
+                {
+                    "eq": [
+                        "headers.Content-Type",
+                        "application/json; charset=UTF-8"
+                    ]
+                },
+                {
+                    "eq": [
+                        "content.code",
+                        200
+                    ]
+                },
+                {
+                    "eq": [
+                        "content.message",
+                        "success"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "/v1/bank/banklist",
+            "request": {
+                "url": "http://39.97.246.180:8889/v1/bank/banklist",
+                "method": "GET",
+                "headers": {
+                    "Authorization": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE1ODM4MjI5MzUsImlzcyI6IjE4IiwiVWlkIjoiMTgiLCJVVHlwZSI6Mn0.ujNZ-NrSc3zwLCEndv3f_ZQDTIFySSFdu4g96Oj8rZY",
+                    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.117 Safari/537.36"
+                }
+            },
+            "validate": [
+                {
+                    "eq": [
+                        "status_code",
+                        200
+                    ]
+                },
+                {
+                    "eq": [
+                        "headers.Content-Type",
+                        "application/json; charset=UTF-8"
+                    ]
+                },
+                {
+                    "eq": [
+                        "content.code",
+                        200
+                    ]
+                },
+                {
+                    "eq": [
+                        "content.message",
+                        "success"
+                    ]
+                }
+            ]
+        }
+    ]
+}

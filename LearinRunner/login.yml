@@ -1,0 +1,18 @@
+-config:
+  name: testCases
+  variables:[]
+
+- test:
+    name: login
+    request:
+      url: http://39.97.246.180:8888/v1/caccount/login
+      method: POST
+      headers:
+        noAuth: "true"
+      data:
+        loginType: "1"
+        password: "klklkl0000"
+        phone: "13041201075"
+    validate:
+      - eq: [status_code, 200]
+      - eq: [content.code, 200]
